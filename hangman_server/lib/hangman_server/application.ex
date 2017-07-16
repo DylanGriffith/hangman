@@ -5,7 +5,9 @@ defmodule HangmanServer.Application do
     import Supervisor.Spec, warn: false
 
     children = [
-      Plug.Adapters.Cowboy.child_spec(:http, HangmanServer.Web.Router, [], [port: 4001])
+      Plug.Adapters.Cowboy.child_spec(:http, HangmanServer.Web.Router, [], [port: 4001]),
+      supervisor(Registry, [:unique, :sessions_process_registry]),
+      supervisor(HangmanServer.Session.Supervisor, []),
     ]
 
     opts = [strategy: :one_for_one, name: HangmanServer.Supervisor]
