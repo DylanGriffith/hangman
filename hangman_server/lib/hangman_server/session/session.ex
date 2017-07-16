@@ -1,9 +1,9 @@
 defmodule HangmanServer.Session.Session do
+  alias HangmanServer.Game.Presenter
   use GenServer
 
   # API
-  def start_link({username, session_id}) do
-    GenServer.start_link(__MODULE__, {username, session_id}, name: via_tuple(session_id))
+  def start_link({username, session_id}) do GenServer.start_link(__MODULE__, {username, session_id}, name: via_tuple(session_id))
   end
 
   def state(session_id) when is_binary(session_id) do
@@ -20,7 +20,7 @@ defmodule HangmanServer.Session.Session do
       username: username,
       session_id: session_id,
       word: "cat",
-      guessed: [],
+      guessed: MapSet.new(),
     }}
   end
 
@@ -38,8 +38,8 @@ defmodule HangmanServer.Session.Session do
 
   defp present(state) do
     %{
+      word: Presenter.obscure_word(state.word, state.guessed),
       username: state.username,
-      word: state.word,
       session_id: state.session_id,
     }
   end
