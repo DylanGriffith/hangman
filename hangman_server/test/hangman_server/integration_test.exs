@@ -56,4 +56,31 @@ defmodule HangmanServer.IntegrationTest do
     assert data["alice"] != nil
     assert data["alice"] >= 0
   end
+
+  test "invalid guess" do
+    # Create a session
+    conn = conn(:post, "/api/sessions", ~s|{"username": "alice"}|)
+           |> put_req_header("content-type", "application/json")
+    conn = HangmanServer.Web.Router.call(conn, @opts)
+
+    assert conn.state == :sent
+    assert conn.status == 201
+
+    data = Poison.decode!(conn.resp_body, keys: :atoms!)
+    session_id = data.session_id
+
+    conn = conn(:put, "/api/sessions/#{session_id}/guess/_")
+           |> put_req_header("content-type", "application/json")
+    conn = HangmanServer.Web.Router.call(conn, @opts)
+
+    assert conn.state == :sent
+    assert conn.status == 400
+
+    conn = conn(:put, "/api/sessions/#{session_id}/guess/ab")
+           |> put_req_header("content-type", "application/json")
+    conn = HangmanServer.Web.Router.call(conn, @opts)
+
+    assert conn.state == :sent
+    assert conn.status == 400
+  end
 end
