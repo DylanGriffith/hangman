@@ -20,6 +20,7 @@ defmodule HangmanServer.IntegrationTest do
     assert session_id =~ ~r/.+/
     assert data.status == "progress"
     assert orig_word =~ ~r/^[_ ]+$/
+    assert data.next_word =~ ~r/^[_ ]+$/
 
     # Make a guess
     conn = conn(:put, "/api/sessions/#{session_id}/guess/a")
@@ -33,5 +34,6 @@ defmodule HangmanServer.IntegrationTest do
     assert data.word =~ ~r/^[_ a]+$/
     assert String.length(data.word) == String.length(orig_word)
     assert data.status == "progress"
+    assert data.next_word =~ ~r/^[_ ]+$/
   end
 end

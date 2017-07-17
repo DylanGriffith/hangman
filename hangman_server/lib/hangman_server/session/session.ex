@@ -22,6 +22,7 @@ defmodule HangmanServer.Session.Session do
       word: "cat",
       guessed: MapSet.new(),
       status: "progress",
+      next_words: ["dog"]
     }}
   end
 
@@ -33,12 +34,14 @@ defmodule HangmanServer.Session.Session do
     %{
       word: word,
       guessed: guessed,
-      status: status
+      status: status,
+      next_words: next_words,
     } = HangmanServer.Game.Logic.guess(
       %{
         word: state.word,
         guessed: state.guessed,
         status: state.status,
+        next_words: state.next_words,
       },
       letter
     )
@@ -47,6 +50,7 @@ defmodule HangmanServer.Session.Session do
       word: word,
       guessed: guessed,
       status: status,
+      next_words: next_words,
     }
     {:reply, present(state), state}
   end
@@ -61,6 +65,7 @@ defmodule HangmanServer.Session.Session do
       username: state.username,
       session_id: state.session_id,
       status: state.status,
+      next_word: state.next_words |> hd |> Presenter.obscure_word(MapSet.new)
     }
   end
 end
