@@ -22,7 +22,8 @@ defmodule HangmanServer.Session.Session do
       word: "cat",
       guessed: MapSet.new(),
       status: "progress",
-      next_words: ["dog"]
+      next_words: ["dog"],
+      started_at: now(),
     }}
   end
 
@@ -31,27 +32,32 @@ defmodule HangmanServer.Session.Session do
   end
 
   def handle_call({:guess, letter}, _from, state) do
-    %{
-      word: word,
-      guessed: guessed,
-      status: status,
-      next_words: next_words,
-    } = HangmanServer.Game.Logic.guess(
-      %{
-        word: state.word,
-        guessed: state.guessed,
-        status: state.status,
-        next_words: state.next_words,
-      },
-      letter
-    )
-    state = %{
-      state |
-      word: word,
-      guessed: guessed,
-      status: status,
-      next_words: next_words,
-    }
+    state = cond do
+      (now() - state.started_at) > 60 ->
+        %{state | status: "timeout"}
+      true ->
+        %{
+          word: word,
+          guessed: guessed,
+          status: status,
+          next_words: next_words,
+        } = HangmanServer.Game.Logic.guess(
+          %{
+            word: state.word,
+            guessed: state.guessed,
+            status: state.status,
+            next_words: state.next_words,
+          },
+          letter
+        )
+        %{
+          state |
+          word: word,
+          guessed: guessed,
+          status: status,
+          next_words: next_words,
+        }
+    end
     {:reply, present(state), state}
   end
 
@@ -67,5 +73,9 @@ defmodule HangmanServer.Session.Session do
       status: state.status,
       next_word: state.next_words |> hd |> Presenter.obscure_word(MapSet.new)
     }
+  end
+
+  defp now do
+    DateTime.to_unix(DateTime.utc_now)
   end
 end
