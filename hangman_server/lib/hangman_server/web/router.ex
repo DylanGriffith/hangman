@@ -22,4 +22,8 @@ defmodule HangmanServer.Web.Router do
     )
     send_resp(conn, 200, Poison.encode!(response))
   end
+
+  get "/api/high_scores" do
+    send_resp(conn, 200, Poison.encode!(HangmanServer.ScoreKeeper.get_high_scores))
+  end
 end
