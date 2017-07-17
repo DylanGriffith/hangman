@@ -36,6 +36,8 @@ defmodule HangmanServer.Session.Session do
     state = cond do
       (now() - state.started_at) > 60 ->
         %{state | status: "timeout"}
+      state.next_words == [] && state.status != "progress" ->
+        %{state | status: "out_of_words"}
       true ->
         %{
           word: word,
@@ -64,6 +66,7 @@ defmodule HangmanServer.Session.Session do
           total_score: total_score,
         }
     end
+
     {:reply, present(state), state}
   end
 
@@ -72,12 +75,17 @@ defmodule HangmanServer.Session.Session do
   end
 
   defp present(state) do
+    next_word = case state.next_words do
+      [h | _] -> h
+      _ -> nil
+    end
+
     %{
       word: Presenter.obscure_word(state.word, state.guessed),
       username: state.username,
       session_id: state.session_id,
       status: state.status,
-      next_word: state.next_words |> hd |> Presenter.obscure_word(MapSet.new),
+      next_word: next_word && Presenter.obscure_word(next_word, MapSet.new),
       total_score: state.total_score,
     }
   end
