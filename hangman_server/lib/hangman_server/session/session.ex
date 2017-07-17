@@ -24,6 +24,7 @@ defmodule HangmanServer.Session.Session do
       status: "progress",
       next_words: ["dog"],
       started_at: now(),
+      total_score: 0,
     }}
   end
 
@@ -50,12 +51,17 @@ defmodule HangmanServer.Session.Session do
           },
           letter
         )
+        total_score = case status do
+          "succeeded" -> state.total_score + 1
+          _ -> state.total_score
+        end
         %{
           state |
           word: word,
           guessed: guessed,
           status: status,
           next_words: next_words,
+          total_score: total_score,
         }
     end
     {:reply, present(state), state}
@@ -71,7 +77,8 @@ defmodule HangmanServer.Session.Session do
       username: state.username,
       session_id: state.session_id,
       status: state.status,
-      next_word: state.next_words |> hd |> Presenter.obscure_word(MapSet.new)
+      next_word: state.next_words |> hd |> Presenter.obscure_word(MapSet.new),
+      total_score: state.total_score,
     }
   end
 
