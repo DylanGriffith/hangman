@@ -3,15 +3,15 @@ defmodule HangmanServer.ScoreKeeper do
 
   # API
   def start_link do
-    GenServer.start_link(__MODULE__, [], name: __MODULE__)
+    GenServer.start_link(__MODULE__, [], name: via_tuple())
   end
 
   def register_score(username, total_score) do
-    GenServer.cast(__MODULE__, {:register_score, username, total_score})
+    GenServer.cast(via_tuple(), {:register_score, username, total_score})
   end
 
   def get_high_scores do
-    GenServer.call(__MODULE__, :get_high_scores)
+    GenServer.call(via_tuple(), :get_high_scores)
   end
 
   # Callbacks
@@ -36,5 +36,9 @@ defmodule HangmanServer.ScoreKeeper do
 
   def handle_call(:get_high_scores, _from, state) do
     {:reply, state.high_scores, state}
+  end
+
+  defp via_tuple do
+    {:via, :swarm, "score-keeper"}
   end
 end

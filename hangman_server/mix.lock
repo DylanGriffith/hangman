@@ -1,7 +1,10 @@
 %{"cors_plug": {:hex, :cors_plug, "1.4.0", "c1c4fb68adf2fd1b4caccee978663edd58f62881627ab65b52ff56146945687f", [:mix], [{:plug, "> 0.14.0", [hex: :plug, repo: "hexpm", optional: false]}], "hexpm"},
   "cowboy": {:hex, :cowboy, "1.0.4", "a324a8df9f2316c833a470d918aaf73ae894278b8aa6226ce7a9bf699388f878", [:make, :rebar], [{:cowlib, "~> 1.0.0", [hex: :cowlib, repo: "hexpm", optional: false]}, {:ranch, "~> 1.0", [hex: :ranch, repo: "hexpm", optional: false]}], "hexpm"},
   "cowlib": {:hex, :cowlib, "1.0.2", "9d769a1d062c9c3ac753096f868ca121e2730b9a377de23dec0f7e08b1df84ee", [:make], [], "hexpm"},
+  "gen_state_machine": {:hex, :gen_state_machine, "2.0.0", "f3bc7d961e4cd9f37944b379137e25fd063feffc42800bed69197fd1b78b3151", [:mix], [], "hexpm"},
+  "libring": {:hex, :libring, "1.2.1", "8e8a40a71df2f09819d5033781fff922299a2f5f15f1cd391c54938556a85e72", [:mix], [], "hexpm"},
   "mime": {:hex, :mime, "1.1.0", "01c1d6f4083d8aa5c7b8c246ade95139620ef8effb009edde934e0ec3b28090a", [:mix], [], "hexpm"},
   "plug": {:hex, :plug, "1.3.5", "7503bfcd7091df2a9761ef8cecea666d1f2cc454cbbaf0afa0b6e259203b7031", [:mix], [{:cowboy, "~> 1.0.1 or ~> 1.1", [hex: :cowboy, repo: "hexpm", optional: true]}, {:mime, "~> 1.0", [hex: :mime, repo: "hexpm", optional: false]}], "hexpm"},
   "poison": {:hex, :poison, "3.1.0", "d9eb636610e096f86f25d9a46f35a9facac35609a7591b3be3326e99a0484665", [:mix], [], "hexpm"},
-  "ranch": {:hex, :ranch, "1.4.0", "10272f95da79340fa7e8774ba7930b901713d272905d0012b06ca6d994f8826b", [:rebar3], [], "hexpm"}}
+  "ranch": {:hex, :ranch, "1.4.0", "10272f95da79340fa7e8774ba7930b901713d272905d0012b06ca6d994f8826b", [:rebar3], [], "hexpm"},
+  "swarm": {:hex, :swarm, "3.0.5", "c54ead44ca5f879959899f325f0e6b904e1a219faecb24ca4e55aad1fe38fecc", [:mix], [{:gen_state_machine, "~> 2.0", [hex: :gen_state_machine, repo: "hexpm", optional: false]}, {:libring, "~> 1.0", [hex: :libring, repo: "hexpm", optional: false]}], "hexpm"}}
