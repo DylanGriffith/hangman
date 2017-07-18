@@ -1,3 +1,11 @@
 use Mix.Config
 
-config :hangman_server, words_per_session: 2
+defmodule WordSuggestorMock do
+  def suggest do
+    "cat"
+  end
+end
+
+config :hangman_server,
+  words_per_session: 2,
+  word_suggestor: WordSuggestorMock

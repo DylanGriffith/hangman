@@ -24,7 +24,7 @@ defmodule HangmanServer.ScoreKeeper do
   def handle_cast({:register_score, username, total_score}, state) do
     new_state = %{
       state |
-      high_scores: Map.update(state.high_scores, username, 0, fn(prev) ->
+      high_scores: Map.update(state.high_scores, username, total_score, fn(prev) ->
         cond do
           total_score > prev -> total_score
           true -> prev

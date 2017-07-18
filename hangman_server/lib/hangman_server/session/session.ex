@@ -2,6 +2,8 @@ defmodule HangmanServer.Session.Session do
   alias HangmanServer.Game.Presenter
   use GenServer
 
+  @word_suggestor Application.get_env(:hangman_server, :word_suggestor)
+
   # API
   def start_link({username, session_id}) do
     GenServer.start_link(__MODULE__, {username, session_id}, name: via_tuple(session_id))
@@ -17,9 +19,9 @@ defmodule HangmanServer.Session.Session do
 
   # Callbacks
   def init({username, session_id}) do
-    limit = Application.get_env(:hangman_server, :words_per_session)
+    limit = Application.get_env(:hangman_server, :words_per_session) - 1
     [word | next_words] = 0..limit |> Enum.map(fn(_) ->
-      HangmanServer.WordSuggestor.suggest
+      @word_suggestor.suggest
     end)
     {:ok, %{
       username: username,

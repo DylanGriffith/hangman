@@ -11,7 +11,9 @@ use Mix.Config
 # You can configure for your application as:
 #
 
-config :hangman_server, words_per_session: 10000
+config :hangman_server,
+  words_per_session: 10000,
+  word_suggestor: HangmanServer.WordSuggestor
 
 #
 # And access this configuration in your application as:
