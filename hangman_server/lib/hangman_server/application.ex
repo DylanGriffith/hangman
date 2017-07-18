@@ -9,6 +9,7 @@ defmodule HangmanServer.Application do
       supervisor(Registry, [:unique, :sessions_process_registry]),
       supervisor(HangmanServer.Session.Supervisor, []),
       worker(HangmanServer.ScoreKeeper, []),
+      worker(HangmanServer.WordSuggestor, []),
     ]
 
     opts = [strategy: :one_for_one, name: HangmanServer.Supervisor]

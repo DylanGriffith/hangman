@@ -3,7 +3,8 @@ defmodule HangmanServer.Session.Session do
   use GenServer
 
   # API
-  def start_link({username, session_id}) do GenServer.start_link(__MODULE__, {username, session_id}, name: via_tuple(session_id))
+  def start_link({username, session_id}) do
+    GenServer.start_link(__MODULE__, {username, session_id}, name: via_tuple(session_id))
   end
 
   def state(session_id) when is_binary(session_id) do
@@ -16,13 +17,17 @@ defmodule HangmanServer.Session.Session do
 
   # Callbacks
   def init({username, session_id}) do
+    limit = Application.get_env(:hangman_server, :words_per_session)
+    [word | next_words] = 0..limit |> Enum.map(fn(_) ->
+      HangmanServer.WordSuggestor.suggest
+    end)
     {:ok, %{
       username: username,
       session_id: session_id,
-      word: "cat",
+      word: word,
       guessed: MapSet.new(),
       status: "progress",
-      next_words: ["dog"],
+      next_words: next_words,
       started_at: now(),
       total_score: 0,
     }}

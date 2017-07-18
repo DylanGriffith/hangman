@@ -10,7 +10,9 @@ use Mix.Config
 
 # You can configure for your application as:
 #
-#     config :hangman_server, key: :value
+
+config :hangman_server, words_per_session: 10000
+
 #
 # And access this configuration in your application as:
 #
@@ -27,4 +29,5 @@ use Mix.Config
 # Configuration from the imported file will override the ones defined
 # here (which is why it is important to import them last).
 #
-#     import_config "#{Mix.env}.exs"
+
+import_config "#{Mix.env}.exs"

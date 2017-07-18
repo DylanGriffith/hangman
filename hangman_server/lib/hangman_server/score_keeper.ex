@@ -1,4 +1,6 @@
 defmodule HangmanServer.ScoreKeeper do
+  use GenServer
+
   # API
   def start_link do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)

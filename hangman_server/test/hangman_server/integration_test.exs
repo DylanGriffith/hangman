@@ -39,7 +39,7 @@ defmodule HangmanServer.IntegrationTest do
     assert data.total_score == 0
 
     # Make the rest of the guesses
-    rest = ["b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
+    rest = ["b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
     Enum.each(rest, fn(letter) ->
       conn(:put, "/api/sessions/#{session_id}/guess/#{letter}")
       |> put_req_header("content-type", "application/json")
