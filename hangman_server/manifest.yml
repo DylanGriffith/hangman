@@ -1,0 +1,5 @@
+---
+applications:
+  - name: hangman
+    memory: 1G
+    buildpack: https://github.com/HashNuke/heroku-buildpack-elixir.git
