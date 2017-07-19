@@ -30,6 +30,11 @@ config :hangman_server,
 # by uncommenting the line below and defining dev.exs, test.exs and such.
 # Configuration from the imported file will override the ones defined
 # here (which is why it is important to import them last).
-#
+
+config :cors_plug,
+  origin: ~r/.*/,
+  max_age: 86400,
+  methods: ["GET", "POST", "PUT"]
 
 import_config "#{Mix.env}.exs"
+

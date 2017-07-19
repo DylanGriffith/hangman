@@ -1,6 +1,8 @@
 defmodule HangmanServer.Web.Router do
   use Plug.Router
 
+  plug CORSPlug, origin: ~r/.*/
+
   plug Plug.Parsers,
     parsers: [:json],
     pass:  ["text/*"],

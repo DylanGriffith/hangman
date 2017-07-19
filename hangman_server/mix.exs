@@ -33,6 +33,7 @@ defmodule HangmanServer.Mixfile do
       {:cowboy, "~> 1.0.0"},
       {:plug, "~> 1.0"},
       {:poison, "~> 3.1"},
+      {:cors_plug, "~> 1.2"},
     ]
   end
 end
