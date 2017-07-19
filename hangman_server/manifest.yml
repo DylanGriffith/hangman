@@ -1,5 +1,5 @@
 ---
 applications:
-  - name: hangman
+  - name: hangman-cluster
     memory: 1G
     buildpack: https://github.com/HashNuke/heroku-buildpack-elixir.git
