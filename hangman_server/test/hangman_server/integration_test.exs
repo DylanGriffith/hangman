@@ -4,86 +4,6 @@ defmodule HangmanServer.IntegrationTest do
 
   @opts HangmanServer.Web.Router.init([])
 
-  test "play" do
-    # Create a session
-    conn = conn(:post, "/api/sessions", ~s|{"username": "alice"}|)
-           |> put_req_header("content-type", "application/json")
-    conn = HangmanServer.Web.Router.call(conn, @opts)
-
-    assert conn.state == :sent
-    assert conn.status == 201
-
-    data = Poison.decode!(conn.resp_body, keys: :atoms!)
-    session_id = data.session_id
-    orig_word = data.word
-    assert data.username == "alice"
-    assert session_id =~ ~r/.+/
-    assert data.status == "progress"
-    assert orig_word =~ ~r/^[_ ]+$/
-    assert data.next_word =~ ~r/^[_ ]+$/
-    assert data.total_score == 0
-
-    # Make a guess
-    conn = conn(:put, "/api/sessions/#{session_id}/guess/a")
-           |> put_req_header("content-type", "application/json")
-    conn = HangmanServer.Web.Router.call(conn, @opts)
-
-    assert conn.state == :sent
-    assert conn.status == 200
-
-    data = Poison.decode!(conn.resp_body, keys: :atoms!)
-    assert data.word =~ ~r/^[_ a]+$/
-    assert String.length(data.word) == String.length(orig_word)
-    assert data.status == "progress"
-    assert data.next_word =~ ~r/^[_ ]+$/
-    assert data.total_score == 0
-
-    # Make the rest of the guesses
-    rest = ["b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
-    Enum.each(rest, fn(letter) ->
-      conn(:put, "/api/sessions/#{session_id}/guess/#{letter}")
-      |> put_req_header("content-type", "application/json")
-      |> HangmanServer.Web.Router.call(@opts)
-    end)
-
-    # Check high scores
-    conn = conn(:get, "/api/high_scores")
-           |> HangmanServer.Web.Router.call(@opts)
-    assert conn.state == :sent
-    assert conn.status == 200
-
-    data = Poison.decode!(conn.resp_body)
-    assert data["alice"] != nil
-    assert data["alice"] >= 0
-  end
-
-  test "invalid guess" do
-    # Create a session
-    conn = conn(:post, "/api/sessions", ~s|{"username": "alice"}|)
-           |> put_req_header("content-type", "application/json")
-    conn = HangmanServer.Web.Router.call(conn, @opts)
-
-    assert conn.state == :sent
-    assert conn.status == 201
-
-    data = Poison.decode!(conn.resp_body, keys: :atoms!)
-    session_id = data.session_id
-
-    conn = conn(:put, "/api/sessions/#{session_id}/guess/_")
-           |> put_req_header("content-type", "application/json")
-    conn = HangmanServer.Web.Router.call(conn, @opts)
-
-    assert conn.state == :sent
-    assert conn.status == 400
-
-    conn = conn(:put, "/api/sessions/#{session_id}/guess/ab")
-           |> put_req_header("content-type", "application/json")
-    conn = HangmanServer.Web.Router.call(conn, @opts)
-
-    assert conn.state == :sent
-    assert conn.status == 400
-  end
-
   test "guess cat" do
     # Create a session
     conn = conn(:post, "/api/sessions", ~s|{"username": "cat-guesser"}|)
@@ -99,29 +19,76 @@ defmodule HangmanServer.IntegrationTest do
     assert data.username == "cat-guesser"
     assert session_id =~ ~r/.+/
     assert data.status == "progress"
-    assert orig_word =~ ~r/^[_ ]+$/
-    assert data.next_word =~ ~r/^[_ ]+$/
+    assert orig_word =~ ~r/___/
+    assert data.next_word =~ ~r/___/
     assert data.total_score == 0
 
-    # Make a guess
-    conn(:put, "/api/sessions/#{session_id}/guess/c")
+    # Guess first cat
+    conn = conn(:put, "/api/sessions/#{session_id}/guess/c")
            |> put_req_header("content-type", "application/json")
            |> HangmanServer.Web.Router.call(@opts)
-    conn(:put, "/api/sessions/#{session_id}/guess/a")
+
+    data = Poison.decode!(conn.resp_body, keys: :atoms!)
+    assert data.status == "progress"
+    assert data.word =~ ~r/c__/
+    assert data.next_word =~ ~r/___/
+
+    conn = conn(:put, "/api/sessions/#{session_id}/guess/a")
            |> put_req_header("content-type", "application/json")
            |> HangmanServer.Web.Router.call(@opts)
-    conn(:put, "/api/sessions/#{session_id}/guess/t")
+
+    data = Poison.decode!(conn.resp_body, keys: :atoms!)
+    assert data.status == "progress"
+    assert data.word =~ ~r/ca_/
+    assert data.next_word =~ ~r/___/
+
+    conn = conn(:put, "/api/sessions/#{session_id}/guess/t")
            |> put_req_header("content-type", "application/json")
            |> HangmanServer.Web.Router.call(@opts)
-    conn(:put, "/api/sessions/#{session_id}/guess/c")
+
+    data = Poison.decode!(conn.resp_body, keys: :atoms!)
+    assert data.status == "succeeded"
+    assert data.word =~ ~r/cat/
+    assert data.next_word =~ ~r/___/
+
+    # Check high score
+    conn = conn(:get, "/api/high_scores")
+           |> HangmanServer.Web.Router.call(@opts)
+    assert conn.state == :sent
+    assert conn.status == 200
+
+    data = Poison.decode!(conn.resp_body)
+    assert data["cat-guesser"] == 1
+
+    # Guess second cat
+    conn = conn(:put, "/api/sessions/#{session_id}/guess/c")
            |> put_req_header("content-type", "application/json")
            |> HangmanServer.Web.Router.call(@opts)
-    conn(:put, "/api/sessions/#{session_id}/guess/a")
+
+    data = Poison.decode!(conn.resp_body, keys: :atoms!)
+    assert data.status == "progress"
+    assert data.word =~ ~r/c__/
+    assert data.next_word == nil
+
+    conn = conn(:put, "/api/sessions/#{session_id}/guess/t")
            |> put_req_header("content-type", "application/json")
            |> HangmanServer.Web.Router.call(@opts)
-    conn(:put, "/api/sessions/#{session_id}/guess/t")
+
+    data = Poison.decode!(conn.resp_body, keys: :atoms!)
+    assert data.status == "progress"
+    assert data.word =~ ~r/c_t/
+    assert data.next_word == nil
+
+    conn = conn(:put, "/api/sessions/#{session_id}/guess/a")
            |> put_req_header("content-type", "application/json")
            |> HangmanServer.Web.Router.call(@opts)
+
+    data = Poison.decode!(conn.resp_body, keys: :atoms!)
+    assert data.status == "succeeded"
+    assert data.word =~ ~r/cat/
+    assert data.next_word == nil
+
+    # Run out of words
     conn = conn(:put, "/api/sessions/#{session_id}/guess/t")
            |> put_req_header("content-type", "application/json")
            |> HangmanServer.Web.Router.call(@opts)
@@ -133,7 +100,7 @@ defmodule HangmanServer.IntegrationTest do
     assert data.status == "out_of_words"
     assert data.total_score == 2
 
-    # Check high scores
+    # Check high score
     conn = conn(:get, "/api/high_scores")
            |> HangmanServer.Web.Router.call(@opts)
     assert conn.state == :sent

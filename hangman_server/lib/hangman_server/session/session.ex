@@ -42,11 +42,9 @@ defmodule HangmanServer.Session.Session do
   def handle_call({:guess, letter}, _from, state) do
     state = cond do
       (now() - state.started_at) > 60 ->
-        GenServer.cast(self(), :register_score)
         Process.send_after(self(), :shutdown, 30 * 1000)
         %{state | status: "timeout"}
       state.next_words == [] && state.status != "progress" ->
-        GenServer.cast(self(), :register_score)
         Process.send_after(self(), :shutdown, 30 * 1000)
         %{state | status: "out_of_words"}
       true ->
@@ -65,8 +63,11 @@ defmodule HangmanServer.Session.Session do
           letter
         )
         total_score = case status do
-          "succeeded" -> state.total_score + 1
-          _ -> state.total_score
+          "succeeded" ->
+            GenServer.cast(self(), :register_score)
+            state.total_score + 1
+          _ ->
+            state.total_score
         end
         %{
           state |
