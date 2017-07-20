@@ -5,6 +5,8 @@ defmodule HangmanServer.IntegrationTest do
   @opts HangmanServer.Web.Router.init([])
 
   test "guess cat" do
+    :ok = HangmanServer.ScoreKeeper.clear_all
+
     # Create a session
     conn = conn(:post, "/api/sessions", ~s|{"username": "cat-guesser"}|)
            |> put_req_header("content-type", "application/json")

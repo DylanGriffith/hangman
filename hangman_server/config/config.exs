@@ -13,7 +13,8 @@ use Mix.Config
 
 config :hangman_server,
   words_per_session: 10000,
-  word_suggestor: HangmanServer.WordSuggestor
+  word_suggestor: HangmanServer.WordSuggestor,
+  redis_prefix: "hangman:"
 
 #
 # And access this configuration in your application as:
