@@ -16,25 +16,37 @@ defmodule HangmanServer.ScoreKeeper do
 
   # Callbacks
   def init([]) do
-    {:ok, %{
-      high_scores: %{}
-    }}
+    GenServer.cast(self(), :connect_to_redis)
+    {:ok, nil}
   end
 
-  def handle_cast({:register_score, username, total_score}, state) do
-    new_state = %{
-      state |
-      high_scores: Map.update(state.high_scores, username, total_score, fn(prev) ->
-        cond do
-          total_score > prev -> total_score
-          true -> prev
-        end
-      end)
-    }
-    {:noreply, new_state}
+  def handle_cast(:connect_to_redis, state) do
+    {:ok, conn} = if System.get_env("VCAP_SERVICES") do
+      hostname = System.get_env("VCAP_SERVICES")["rediscloud"]["hostname"]
+      port = System.get_env("VCAP_SERVICES")["rediscloud"]["port"]
+      password = System.get_env("VCAP_SERVICES")["rediscloud"]["password"]
+      Redix.start_link(host: hostname, port: port, password: password)
+    else
+      Redix.start_link()
+    end
+    {:noreply, conn}
   end
 
-  def handle_call(:get_high_scores, _from, state) do
-    {:reply, state.high_scores, state}
+  def handle_cast({:register_score, username, total_score}, conn) do
+    {:ok, score} = Redix.command(conn, ["HGET", "hangman-high-scores", username])
+    if !score do
+      {:ok, _} = Redix.command(conn, ["HSET", "hangman-high-scores", username, total_score])
+    else
+      {score, ""} = Integer.parse(score)
+      if total_score > score do
+        {:ok, _} = Redix.command(conn, ["HSET", "hangman-high-scores", username, total_score])
+      end
+    end
+
+    {:noreply, conn}
+  end
+
+  def handle_call(:get_high_scores, _from, conn) do
+    {:reply, state.high_scores, conn}
   end
 end
