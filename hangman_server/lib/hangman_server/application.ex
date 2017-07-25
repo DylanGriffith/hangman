@@ -5,16 +5,15 @@ defmodule HangmanServer.Application do
     import Supervisor.Spec, warn: false
 
     port = elem(Integer.parse(System.get_env("PORT") || "4001"), 0)
+     children = [
+       Plug.Adapters.Cowboy.child_spec(:http, HangmanServer.Web.Router, [], [port: port]),
+       supervisor(Registry, [:unique, :sessions_process_registry]),
+       supervisor(HangmanServer.Session.Supervisor, []),
+       worker(HangmanServer.ScoreKeeper, []),
+       worker(HangmanServer.WordSuggestor, []),
+     ]
 
-    children = [
-      Plug.Adapters.Cowboy.child_spec(:http, HangmanServer.Web.Router, [], [port: port]),
-      supervisor(Registry, [:unique, :sessions_process_registry]),
-      supervisor(HangmanServer.Session.Supervisor, []),
-      worker(HangmanServer.ScoreKeeper, []),
-      worker(HangmanServer.WordSuggestor, []),
-    ]
-
-    opts = [strategy: :one_for_one, name: HangmanServer.Supervisor]
-    Supervisor.start_link(children, opts)
+      opts = [strategy: :one_for_one, name: HangmanServer.Supervisor]
+      Supervisor.start_link(children, opts)
   end
 end

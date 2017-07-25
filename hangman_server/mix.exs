@@ -35,6 +35,7 @@ defmodule HangmanServer.Mixfile do
       {:poison, "~> 3.1"},
       {:cors_plug, "~> 1.2"},
       {:redix, "~> 0.6"},
+      {:libcluster, "~> 2.1"},
     ]
   end
 end

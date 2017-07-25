@@ -27,9 +27,19 @@ defmodule HangmanServer.ScoreKeeper do
 
   def handle_cast(:connect_to_redis, _) do
     {:ok, conn} = if System.get_env("VCAP_SERVICES") do
-      hostname = System.get_env("VCAP_SERVICES")["rediscloud"]["hostname"]
-      port = System.get_env("VCAP_SERVICES")["rediscloud"]["port"]
-      password = System.get_env("VCAP_SERVICES")["rediscloud"]["password"]
+      conf = Poison.decode!(System.get_env("VCAP_SERVICES"))
+      %{
+        "rediscloud" => [
+          %{
+            "credentials" => %{
+              "hostname" => hostname,
+              "port" => port_string,
+              "password" => password
+            }
+          }
+        ]
+      } = conf
+      {port, ""} = Integer.parse(port_string)
       Redix.start_link(host: hostname, port: port, password: password)
     else
       if System.get_env("REDIS_URL") do

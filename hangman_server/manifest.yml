@@ -1,5 +1,7 @@
 ---
 applications:
-  - name: hangman
-    memory: 1G
+  - name: hangman-cluster
+    instances: 4
+    memory: 512M
     buildpack: https://github.com/HashNuke/heroku-buildpack-elixir.git
+    command: iex --name app$CF_INSTANCE_INDEX@$CF_INSTANCE_IP --cookie $ERLANG_COOKIE -S mix

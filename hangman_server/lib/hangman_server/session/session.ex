@@ -83,7 +83,7 @@ defmodule HangmanServer.Session.Session do
   end
 
   defp via_tuple(session_id) do
-    {:via, Registry, {:sessions_process_registry, session_id}}
+    {:via, :swarm, session_id}
   end
 
   defp present(state) do
