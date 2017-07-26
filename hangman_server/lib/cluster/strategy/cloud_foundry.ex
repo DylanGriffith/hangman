@@ -37,7 +37,7 @@ defmodule Cluster.Strategy.CloudFoundry do
         cf_username: cf_username,
         cf_password: cf_username,
         app_guid: app_guid,
-      ),
+      },
       meta: MapSet.new([])
     }
     {:ok, state, 0}
@@ -80,7 +80,7 @@ defmodule Cluster.Strategy.CloudFoundry do
     %{
         cf_api_base_uri: cf_api_base_uri,
         cf_username: cf_username,
-        cf_password: cf_username,
+        cf_password: cf_password,
     } = config
 
     case get_login_base_url(cf_api_base_uri) do
@@ -95,13 +95,13 @@ defmodule Cluster.Strategy.CloudFoundry do
             Poison.decode!(body)["access_token"]
           {:ok, {{_version, 403, _status}, _headers, body}} ->
             %{"message" => msg} = Poison.decode!(body)
-            warn topology, "cannot query cloudfoundry (unauthorized): #{msg}"
+            warn cf_api_base_uri, "cannot query cloudfoundry (unauthorized): #{msg}"
             nil
           {:ok, {{_version, code, status}, _headers, body}} ->
-            warn topology, "cannot query cloudfoundry (#{code} #{status}): #{inspect body}"
+            warn cf_api_base_uri, "cannot query cloudfoundry (#{code} #{status}): #{inspect body}"
             nil
           {:error, reason} ->
-            error topology, "request to cloudfoundry failed!: #{inspect reason}"
+            error cf_api_base_uri, "request to cloudfoundry failed!: #{inspect reason}"
             nil
         end
       _ -> nil
@@ -113,55 +113,35 @@ defmodule Cluster.Strategy.CloudFoundry do
       {'accept', 'application/json'},
     ]
     case :httpc.request(:get, {'#{cf_api_base_uri}/login', headers}, [], []) do
+      {:ok, {{_version, 200, _status}, _headers, body}} ->
         data = Poison.decode!(body)
         {:ok, data["login"]}
       {:ok, {{_version, 403, _status}, _headers, body}} ->
         %{"message" => msg} = Poison.decode!(body)
-        warn topology, "cannot query cloudfoundry (unauthorized): #{msg}"
+        warn cf_api_base_uri, "cannot query cloudfoundry (unauthorized): #{msg}"
         {:error, "unauthorized"}
       {:ok, {{_version, code, status}, _headers, body}} ->
-        warn topology, "cannot query cloudfoundry (#{code} #{status}): #{inspect body}"
+        warn cf_api_base_uri, "cannot query cloudfoundry (#{code} #{status}): #{inspect body}"
         {:error, "cf unexpected response"}
       {:error, reason} ->
-        error topology, "request to cloudfoundry failed!: #{inspect reason}"
+        error cf_api_base_uri, "request to cloudfoundry failed!: #{inspect reason}"
         {:error, "cf request failure"}
     end
   end
 
   @spec get_nodes(State.t) :: [atom()]
   defp get_nodes(%State{topology: topology, config: config}) do
-    token     = get_token()
+    token     = get_token(config)
     app_guid = Keyword.fetch!(config, :app_guid)
     cf_api_base_uri = Keyword.fetch!(config, :cf_api_base_uri)
     cond do
-      app_name != nil and selector != nil ->
-        selector = URI.encode(selector)
+      app_guid != nil and cf_api_base_uri != nil and token != nil ->
         endpoints_path = "/v2/apps/#{app_guid}/stats"
         headers        = [{'authorization', 'Bearer #{token}'}]
         http_options   = [ssl: [verify: :verify_none]]
-        case :httpc.request(:get, {'https://#{@kubernetes_master}/#{endpoints_path}', headers}, http_options, []) do
+        case :httpc.request(:get, {'#{cf_api_base_uri}/#{endpoints_path}', headers}, http_options, []) do
           {:ok, {{_version, 200, _status}, _headers, body}} ->
-            case Poison.decode!(body) do
-              %{"items" => []} ->
-                []
-              %{"items" => items} ->
-                Enum.reduce(items, [], fn
-                  %{"subsets" => []}, acc ->
-                    acc
-                  %{"subsets" => subsets}, acc ->
-                    addrs = Enum.flat_map(subsets, fn
-                      %{"addresses" => addresses} ->
-                        Enum.map(addresses, fn %{"ip" => ip} -> :"#{app_name}@#{ip}" end)
-                      _ ->
-                        []
-                    end)
-                    acc ++ addrs
-                  _, acc ->
-                    acc
-                end)
-              _ ->
-                []
-            end
+            parse_nodes(body)
           {:ok, {{_version, 403, _status}, _headers, body}} ->
             %{"message" => msg} = Poison.decode!(body)
             warn topology, "cannot query kubernetes (unauthorized): #{msg}"
@@ -173,16 +153,26 @@ defmodule Cluster.Strategy.CloudFoundry do
             error topology, "request to kubernetes failed!: #{inspect reason}"
             []
         end
-      app_name == nil ->
-        warn topology, "kubernetes strategy is selected, but :kubernetes_node_basename is not configured!"
+      app_guid == nil ->
+        warn "foobar", "kubernetes strategy is selected, but :kubernetes_node_basename is not configured!"
         []
-      selector == nil ->
-        warn topology, "kubernetes strategy is selected, but :kubernetes_selector is not configured!"
+      cf_api_base_uri == nil ->
+        warn "foobar", "kubernetes strategy is selected, but :kubernetes_selector is not configured!"
+        []
+      token == nil ->
+        warn "foobar", "kubernetes strategy is selected, but :kubernetes_selector is not configured!"
         []
       :else ->
-        warn topology, "kubernetes strategy is selected, but is not configured!"
+        warn "foobar", "kubernetes strategy is selected, but is not configured!"
         []
     end
   end
 
+  def parse_nodes(response) do
+    data = Poison.decode!(response)
+    data |> Enum.map(fn({instance_id, data}) ->
+      ip_addr = data["stats"]["host"]
+      :"app#{instance_id}@#{ip_addr}"
+    end)
+  end
 end
