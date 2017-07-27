@@ -20,10 +20,8 @@ defmodule Cluster.Strategy.CloudFoundry do
   def init(opts) do
     vcap_application = Poison.decode!(System.get_env("VCAP_APPLICATION"))
     cf_api_base_uri = vcap_application["cf_api"]
-    cf_username = System.get_env("LIBCLUSTER_CF_USERNAME")
-    cf_password = System.get_env("LIBCLUSTER_CF_PASSWORD")
     app_guid = vcap_application["application_id"]
-    config = Keyword.fetch!(opts, :config)
+    config = Enum.into(Keyword.fetch!(opts, :config), %{})
 
     state = %State{
       topology: Keyword.fetch!(opts, :topology),
@@ -31,11 +29,8 @@ defmodule Cluster.Strategy.CloudFoundry do
       disconnect: Keyword.fetch!(opts, :disconnect),
       list_nodes: Keyword.fetch!(opts, :list_nodes),
       config: %{
-        config |
         vcap_application: vcap_application,
         cf_api_base_uri: cf_api_base_uri,
-        cf_username: cf_username,
-        cf_password: cf_username,
         app_guid: app_guid,
       },
       meta: MapSet.new([])
@@ -77,34 +72,28 @@ defmodule Cluster.Strategy.CloudFoundry do
 
   #@spec get_token(Map) :: String.t
   defp get_token(config) do
-    %{
-        cf_api_base_uri: cf_api_base_uri,
-        cf_username: cf_username,
-        cf_password: cf_password,
-    } = config
-
-    case get_login_base_url(cf_api_base_uri) do
-      {:ok, login_base_url} ->
+    cf_username = System.get_env("LIBCLUSTER_CF_USERNAME")
+    cf_password = System.get_env("LIBCLUSTER_CF_PASSWORD")
+    login_base_url = "https://login.run.pivotal.io"
         headers = [
-          {'accept', 'application/json'},
         ]
-        uri_encoded_username = URI.encode(cf_username)
-        req_body = 'grant_type=password&password=#{cf_password}&scope=&username=#{uri_encoded_username}'
-        case :httpc.request(:post, {'#{login_base_url}/oauth/token', headers, 'application/x-www-form-urlencoded', req_body}, [], []) do
-          {:ok, {{_version, 200, _status}, _headers, body}} ->
-            Poison.decode!(body)["access_token"]
-          {:ok, {{_version, 403, _status}, _headers, body}} ->
-            %{"message" => msg} = Poison.decode!(body)
-            warn cf_api_base_uri, "cannot query cloudfoundry (unauthorized): #{msg}"
-            nil
-          {:ok, {{_version, code, status}, _headers, body}} ->
-            warn cf_api_base_uri, "cannot query cloudfoundry (#{code} #{status}): #{inspect body}"
-            nil
-          {:error, reason} ->
-            error cf_api_base_uri, "request to cloudfoundry failed!: #{inspect reason}"
-            nil
-        end
-      _ -> nil
+        uri_encoded_username = URI.encode_www_form(cf_username)
+        uri_encoded_password = URI.encode_www_form(cf_password)
+        req_body = 'grant_type=password&password=#{uri_encoded_password}&scope=&username=#{uri_encoded_username}'
+        IO.inspect(req_body)
+    case :httpc.request(:post, {'#{login_base_url}/oauth/token?#{req_body}', headers, 'application/x-www-form-urlencoded', req_body}, [], []) do
+      {:ok, {{_version, 200, _status}, _headers, body}} ->
+        Poison.decode!(body)["access_token"]
+      {:ok, {{_version, 403, _status}, _headers, body}} ->
+        %{"message" => msg} = Poison.decode!(body)
+        warn login_base_url, "cannot query cloudfoundry (unauthorized): #{msg}"
+        nil
+      {:ok, {{_version, code, status}, _headers, body}} ->
+        warn login_base_url, "cannot query cloudfoundry (#{code} #{status}): #{inspect body}"
+        nil
+      {:error, reason} ->
+        error login_base_url, "request to cloudfoundry failed!: #{inspect reason}"
+        nil
     end
   end
 
