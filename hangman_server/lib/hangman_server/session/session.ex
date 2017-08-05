@@ -23,6 +23,7 @@ defmodule HangmanServer.Session.Session do
     [word | next_words] = 0..limit |> Enum.map(fn(_) ->
       @word_suggestor.suggest
     end)
+    Process.send_after(self(), :timeout, 60 * 1000)
     {:ok, %{
       username: username,
       session_id: session_id,
@@ -41,11 +42,11 @@ defmodule HangmanServer.Session.Session do
 
   def handle_call({:guess, letter}, _from, state) do
     state = cond do
-      (now() - state.started_at) > 60 ->
-        Process.send_after(self(), :shutdown, 30 * 1000)
-        %{state | status: "timeout"}
+      state.status == "timeout" ->
+        state
+      state.status == "out_of_words" ->
+        state
       state.next_words == [] && state.status != "progress" ->
-        Process.send_after(self(), :shutdown, 30 * 1000)
         %{state | status: "out_of_words"}
       true ->
         %{
@@ -109,6 +110,11 @@ defmodule HangmanServer.Session.Session do
 
   def handle_info(:shutdown, state) do
     {:stop, :normal, state}
+  end
+
+  def handle_info(:timeout, state) do
+    Process.send_after(self(), :shutdown, 30 * 1000)
+    {:stop, :normal, %{state | status: "timeout"}}
   end
 
   defp now do
