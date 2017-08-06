@@ -14,27 +14,43 @@ defmodule Cluster.Strategy.CloudFoundry do
 
   alias Cluster.Strategy.State
 
-  @default_polling_interval 5_000
+  # export PATH=$PATH:/home/vcap/app/.platform_tools/erlang/bin:/home/vcap/app/.platform_tools/elixir/bin
+  # iex --name a$CF_INSTANCE_INDEX@$CF_INSTANCE_INTERNAL_IP --cookie monster
+  # Node.connect(
+
+  @default_polling_interval 60_000
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
   def init(opts) do
     vcap_application = Poison.decode!(System.get_env("VCAP_APPLICATION"))
     cf_api_base_uri = vcap_application["cf_api"]
     app_guid = vcap_application["application_id"]
+    app_name = vcap_application["application_name"]
     config = Enum.into(Keyword.fetch!(opts, :config), %{})
+    {instance_id, ""} = Integer.parse(System.get_env("CF_INSTANCE_INDEX"))
 
     state = %State{
       topology: Keyword.fetch!(opts, :topology),
       connect: Keyword.fetch!(opts, :connect),
       disconnect: Keyword.fetch!(opts, :disconnect),
       list_nodes: Keyword.fetch!(opts, :list_nodes),
-      config: %{
-        vcap_application: vcap_application,
-        cf_api_base_uri: cf_api_base_uri,
-        app_guid: app_guid,
-      },
+      config: Map.merge(
+        config,
+        %{
+          vcap_application: vcap_application,
+          cf_api_base_uri: cf_api_base_uri,
+          app_guid: app_guid,
+          app_name: app_name,
+          instance_id: instance_id,
+        }
+      ),
       meta: MapSet.new([])
     }
+
+    cf_username = System.get_env("LIBCLUSTER_CF_USERNAME")
+    cf_password = System.get_env("LIBCLUSTER_CF_PASSWORD")
+    {_, 0} = System.cmd("#{System.cwd}/cf", ["login", "-a", cf_api_base_uri, "-u", cf_username, "-p", cf_password])
+
     {:ok, state, 0}
   end
 
@@ -63,105 +79,36 @@ defmodule Cluster.Strategy.CloudFoundry do
                   MapSet.delete(acc, n)
                 end)
             end
-    Process.send_after(self(), :load, Keyword.get(state.config, :polling_interval, @default_polling_interval))
+    Process.send_after(self(), :load, Map.get(state.config, :polling_interval, @default_polling_interval))
     {:noreply, %{state | :meta => new_nodelist}}
   end
+
   def handle_info(_, state) do
     {:noreply, state}
   end
 
-  #@spec get_token(Map) :: String.t
-  defp get_token(config) do
-    cf_username = System.get_env("LIBCLUSTER_CF_USERNAME")
-    cf_password = System.get_env("LIBCLUSTER_CF_PASSWORD")
-    login_base_url = "https://login.run.pivotal.io"
-        headers = [
-        ]
-        uri_encoded_username = URI.encode_www_form(cf_username)
-        uri_encoded_password = URI.encode_www_form(cf_password)
-        req_body = 'grant_type=password&password=#{uri_encoded_password}&scope=&username=#{uri_encoded_username}'
-        IO.inspect(req_body)
-    case :httpc.request(:post, {'#{login_base_url}/oauth/token?#{req_body}', headers, 'application/x-www-form-urlencoded', req_body}, [], []) do
-      {:ok, {{_version, 200, _status}, _headers, body}} ->
-        Poison.decode!(body)["access_token"]
-      {:ok, {{_version, 403, _status}, _headers, body}} ->
-        %{"message" => msg} = Poison.decode!(body)
-        warn login_base_url, "cannot query cloudfoundry (unauthorized): #{msg}"
-        nil
-      {:ok, {{_version, code, status}, _headers, body}} ->
-        warn login_base_url, "cannot query cloudfoundry (#{code} #{status}): #{inspect body}"
-        nil
-      {:error, reason} ->
-        error login_base_url, "request to cloudfoundry failed!: #{inspect reason}"
-        nil
-    end
-  end
-
-  defp get_login_base_url(cf_api_base_uri) do
-    headers = [
-      {'accept', 'application/json'},
-    ]
-    case :httpc.request(:get, {'#{cf_api_base_uri}/login', headers}, [], []) do
-      {:ok, {{_version, 200, _status}, _headers, body}} ->
-        data = Poison.decode!(body)
-        {:ok, data["login"]}
-      {:ok, {{_version, 403, _status}, _headers, body}} ->
-        %{"message" => msg} = Poison.decode!(body)
-        warn cf_api_base_uri, "cannot query cloudfoundry (unauthorized): #{msg}"
-        {:error, "unauthorized"}
-      {:ok, {{_version, code, status}, _headers, body}} ->
-        warn cf_api_base_uri, "cannot query cloudfoundry (#{code} #{status}): #{inspect body}"
-        {:error, "cf unexpected response"}
-      {:error, reason} ->
-        error cf_api_base_uri, "request to cloudfoundry failed!: #{inspect reason}"
-        {:error, "cf request failure"}
-    end
-  end
-
   @spec get_nodes(State.t) :: [atom()]
   defp get_nodes(%State{topology: topology, config: config}) do
-    token     = get_token(config)
-    app_guid = Keyword.fetch!(config, :app_guid)
-    cf_api_base_uri = Keyword.fetch!(config, :cf_api_base_uri)
-    cond do
-      app_guid != nil and cf_api_base_uri != nil and token != nil ->
-        endpoints_path = "/v2/apps/#{app_guid}/stats"
-        headers        = [{'authorization', 'Bearer #{token}'}]
-        http_options   = [ssl: [verify: :verify_none]]
-        case :httpc.request(:get, {'#{cf_api_base_uri}/#{endpoints_path}', headers}, http_options, []) do
-          {:ok, {{_version, 200, _status}, _headers, body}} ->
-            parse_nodes(body)
-          {:ok, {{_version, 403, _status}, _headers, body}} ->
-            %{"message" => msg} = Poison.decode!(body)
-            warn topology, "cannot query kubernetes (unauthorized): #{msg}"
-            []
-          {:ok, {{_version, code, status}, _headers, body}} ->
-            warn topology, "cannot query kubernetes (#{code} #{status}): #{inspect body}"
-            []
-          {:error, reason} ->
-            error topology, "request to kubernetes failed!: #{inspect reason}"
-            []
-        end
-      app_guid == nil ->
-        warn "foobar", "kubernetes strategy is selected, but :kubernetes_node_basename is not configured!"
+    instance_id = config.instance_id
+    app_name = config.app_name
+    case instance_id do
+      0 ->
         []
-      cf_api_base_uri == nil ->
-        warn "foobar", "kubernetes strategy is selected, but :kubernetes_selector is not configured!"
-        []
-      token == nil ->
-        warn "foobar", "kubernetes strategy is selected, but :kubernetes_selector is not configured!"
-        []
-      :else ->
-        warn "foobar", "kubernetes strategy is selected, but is not configured!"
-        []
+      id ->
+        0..(id-1)
+        |> Enum.map(fn(i) ->
+          case System.cmd("#{System.cwd}/cf", ["ssh", app_name, "-i", "#{i}", "-c", "echo $CF_INSTANCE_INTERNAL_IP" ]) do
+            {ip, 0} ->
+              ip = String.trim(ip)
+              warn topology, "#{:erlang.node}: discovered ip #{ip} for instance #{i}"
+              {i, ip}
+            {body, code} ->
+              warn topology, "#{:erlang.node}: cannot cf ssh to instance #{i} (#{code}): #{body}"
+              nil
+          end
+        end)
+        |> Enum.reject(fn(ip) -> ip == nil end)
+        |> Enum.map(fn({i, ip}) -> IO.inspect(:"app#{i}@#{ip}") end)
     end
-  end
-
-  def parse_nodes(response) do
-    data = Poison.decode!(response)
-    data |> Enum.map(fn({instance_id, data}) ->
-      ip_addr = data["stats"]["host"]
-      :"app#{instance_id}@#{ip_addr}"
-    end)
   end
 end

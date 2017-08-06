@@ -50,11 +50,10 @@ defmodule Cluster.Strategy.CloudFoundryTest do
             }
          },
          "2": {
-            "state": "RUNNING",
+            "state": "STARTING",
             "isolation_segment": null,
             "stats": {
-               "name": "test-app-cluster",
-               "uris": [
+               "name": "test-app-cluster", "uris": [
                   "test-app-cluster.cfapps.io"
                ],
                "host": "10.10.100.122",
@@ -99,7 +98,6 @@ defmodule Cluster.Strategy.CloudFoundryTest do
     assert parse_nodes(response) == [
       :"app0@10.10.100.120",
       :"app1@10.10.100.121",
-      :"app2@10.10.100.122",
       :"app3@10.10.100.123",
     ]
   end
